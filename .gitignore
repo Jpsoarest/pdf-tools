@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+venv/
+
+# Build outputs
+.next/
+dist/
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Logs
+*.log
+*.err.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+temp/
+*.tmp
+
+# IDE and tools
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+.opencode/
+opencode.json.bak
+teste*.pdf
+teste*.webp
+teste*.png
+logo.png
