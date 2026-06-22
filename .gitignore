@@ -27,6 +27,8 @@ __pycache__/
 # Temporary files
 temp/
 *.tmp
+backend/data/users.json
+backend/test*.pdf
 
 # IDE and tools
 .vscode/
@@ -45,3 +47,8 @@ teste*.pdf
 teste*.webp
 teste*.png
 logo.png
+!frontend/public/logo.png
+
+# Generated Docker deployment artifacts
+*.tar
+SHA256SUMS.txt

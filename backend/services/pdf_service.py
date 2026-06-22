@@ -1,5 +1,6 @@
 import os
 import json
+import io
 from pathlib import Path
 from typing import List, Tuple, Optional
 
@@ -11,12 +12,81 @@ from core.utils import parse_page_range
 from core.errors import raise_bad_request, raise_internal_error
 
 
-def compress_pdf_service(input_path: Path, output_path: Path) -> Tuple[Path, float]:
+def _optimize_pdf(input_path: Path, output_path: Path) -> None:
     with pikepdf.Pdf.open(input_path) as pdf:
         pdf.save(output_path, compress_streams=True,
                  object_stream_mode=pikepdf.ObjectStreamMode.generate)
 
+
+def _compression_profile(level: int) -> tuple[int, int]:
+    if level <= 20:
+        return 200, 82
+    if level <= 45:
+        return 160, 68
+    if level <= 70:
+        return 125, 52
+    if level <= 90:
+        return 105, 38
+    return 85, 28
+
+
+def _raster_compress_pdf(input_path: Path, output_path: Path, level: int) -> None:
+    try:
+        import fitz
+        from PIL import Image
+    except Exception:
+        raise_internal_error("Dependencia nao instalada: pymupdf ou pillow")
+
+    dpi, jpeg_quality = _compression_profile(level)
+    source_doc = fitz.open(input_path)
+    compressed_doc = fitz.open()
+
+    try:
+        for page in source_doc:
+            rect = page.rect
+            pix = page.get_pixmap(matrix=fitz.Matrix(dpi / 72, dpi / 72), alpha=False)
+            image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
+            image_buffer = io.BytesIO()
+            image.save(
+                image_buffer,
+                format="JPEG",
+                quality=jpeg_quality,
+                optimize=True,
+                progressive=True,
+            )
+            image_buffer.seek(0)
+
+            compressed_page = compressed_doc.new_page(width=rect.width, height=rect.height)
+            compressed_page.insert_image(rect, stream=image_buffer.getvalue())
+
+        compressed_doc.save(output_path, garbage=4, deflate=True, clean=True)
+    finally:
+        source_doc.close()
+        compressed_doc.close()
+
+
+def compress_pdf_service(input_path: Path, output_path: Path, compression_level: int = 55) -> Tuple[Path, float]:
+    if compression_level < 0 or compression_level > 100:
+        raise_bad_request("Nivel de compressao deve ficar entre 0 e 100")
+
     original_size = os.path.getsize(input_path)
+
+    if compression_level <= 10:
+        _optimize_pdf(input_path, output_path)
+    else:
+        raster_path = output_path.with_name(f"{output_path.stem}_raster{output_path.suffix}")
+        optimized_raster_path = output_path.with_name(f"{output_path.stem}_optimized{output_path.suffix}")
+        try:
+            _raster_compress_pdf(input_path, raster_path, compression_level)
+            _optimize_pdf(raster_path, optimized_raster_path)
+            if optimized_raster_path.exists():
+                optimized_raster_path.replace(output_path)
+            else:
+                raster_path.replace(output_path)
+        finally:
+            cleanup_temp(raster_path, optimized_raster_path)
+
     compressed_size = os.path.getsize(output_path)
 
     if compressed_size >= original_size:
@@ -106,6 +176,26 @@ def split_pdf_service(
                 with open(out, "wb") as f:
                     writer.write(f)
                 output_files.append(out)
+    elif mode == "visual":
+        groups = json.loads(ranges)  # ranges holds JSON: [[1,2,3],[4,5],...]
+        for gi, group in enumerate(groups, start=1):
+            if not group:
+                continue
+            writer = PdfWriter()
+            page_nums = []
+            for pn in group:
+                if 1 <= pn <= total_pages:
+                    writer.add_page(reader.pages[pn - 1])
+                    page_nums.append(pn)
+            if not page_nums:
+                continue
+            label = f"grupo_{gi}_paginas_{'_'.join(str(p) for p in page_nums[:4])}"
+            if len(page_nums) > 4:
+                label += f"_e_mais_{len(page_nums)-4}"
+            out = output_folder / f"{label}.pdf"
+            with open(out, "wb") as f:
+                writer.write(f)
+            output_files.append(out)
 
     return output_files, total_pages
 

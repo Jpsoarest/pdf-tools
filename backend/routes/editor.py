@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from core.security import validate_pdf, validate_image
 from core.tempfiles import generate_temp_path, save_upload
 from core.errors import raise_bad_request, raise_internal_error
+from core.outputfiles import AutoSaveFileResponse
 from services.editor_service import (
     get_text_layer_service, edit_pdf_service, watermark_pdf_service,
     number_pages_service, ocr_pdf_service, image_to_text_service,
@@ -53,7 +54,7 @@ async def edit_pdf(file: UploadFile = File(...), operations: str = Form("[]")):
         total_pages, applied, fields_added, replaced_text = edit_pdf_service(
             input_path, output_path, parsed_operations, file.filename
         )
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"edited_{file.filename}",
@@ -96,7 +97,7 @@ async def watermark_pdf(
         total_pages = watermark_pdf_service(
             input_path, output_path, text, opacity, position, font_size, pages, image_data
         )
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"watermarked_{file.filename}",
@@ -127,7 +128,7 @@ async def number_pages(
         total_pages = number_pages_service(
             input_path, output_path, start_number, format_str, position, margin, skip
         )
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"numbered_{file.filename}",
@@ -148,7 +149,7 @@ async def ocr_pdf(file: UploadFile = File(...), lang: str = Form("pt")):
 
     try:
         total_pages = ocr_pdf_service(input_path, output_path, lang)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="text/plain; charset=utf-8",
             filename=f"{file.filename.replace('.pdf', '')}_ocr.txt",
@@ -174,7 +175,7 @@ async def image_to_text(file: UploadFile = File(...), lang: str = Form("pt")):
 
     try:
         image_to_text_service(input_path, output_path, lang)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="text/plain; charset=utf-8",
             filename=f"{os.path.splitext(file.filename)[0]}_ocr.txt"
@@ -194,7 +195,7 @@ async def pdf_to_word(file: UploadFile = File(...), pages: str = Form("")):
 
     try:
         pages_processed = pdf_to_word_service(input_path, output_path, pages)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename=f"{file.filename.replace('.pdf', '')}.docx",
@@ -218,7 +219,7 @@ async def word_to_pdf(file: UploadFile = File(...)):
 
     try:
         word_to_pdf_service(input_path, output_path)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"{os.path.splitext(file.filename)[0]}.pdf"

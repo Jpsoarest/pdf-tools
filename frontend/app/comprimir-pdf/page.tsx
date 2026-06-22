@@ -15,7 +15,7 @@ import { apiPost, downloadBlob } from '../lib/api';
 
 export default function ComprimirPDF() {
   const router = useRouter();
-  const { incomingFile, consumeFile, pushFile, clearFile } = useToolChain();
+  const { consumeFile, pushFile, clearFile } = useToolChain();
   const chainLoaded = useRef(false);
 
   const [files, setFiles] = useState<File[]>([]);
@@ -25,6 +25,43 @@ export default function ComprimirPDF() {
   const [stats, setStats] = useState<{ originalSize: number; compressedSize: number; reduction: number } | null>(null);
   const [blob, setBlob] = useState<Blob | null>(null);
   const [sourceTool, setSourceTool] = useState('');
+  const [compressionLevel, setCompressionLevel] = useState(70);
+
+  const compressionProfile = (() => {
+    if (compressionLevel <= 10) {
+      return {
+        name: 'Sem perda',
+        detail: 'Otimiza a estrutura do PDF, preservando texto, imagens e qualidade original.',
+        warning: 'Reducao limitada em PDFs que ja foram otimizados.',
+      };
+    }
+    if (compressionLevel <= 35) {
+      return {
+        name: 'Leve',
+        detail: 'Reduz imagens com perda pequena e boa legibilidade para impressao.',
+        warning: 'Pode suavizar fotos e digitalizacoes.',
+      };
+    }
+    if (compressionLevel <= 60) {
+      return {
+        name: 'Equilibrada',
+        detail: 'Boa reducao para documentos digitalizados, mantendo leitura confortavel.',
+        warning: 'Texto pesquisavel pode virar imagem nas paginas recomprimidas.',
+      };
+    }
+    if (compressionLevel <= 85) {
+      return {
+        name: 'Forte',
+        detail: 'Compressao agressiva para reduzir bastante arquivos grandes.',
+        warning: 'Pode perder nitidez fina, OCR, camadas e texto selecionavel.',
+      };
+    }
+    return {
+      name: 'Maxima',
+      detail: 'Modo extremo para tentar o menor arquivo possivel.',
+      warning: 'Perda visivel de qualidade. Use quando tamanho for mais importante que fidelidade.',
+    };
+  })();
 
   useEffect(() => {
     if (chainLoaded.current) return;
@@ -46,6 +83,7 @@ export default function ComprimirPDF() {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('compression_level', String(compressionLevel));
 
     try {
       const res = await apiPost('/compress-pdf', formData);
@@ -95,7 +133,7 @@ export default function ComprimirPDF() {
     await downloadBlob(blob, `compressed_${files[0].name}`);
   };
 
-  const sendTo = (targetHref: string, targetName: string) => {
+  const sendTo = (targetHref: string) => {
     if (!blob) return;
     pushFile({
       file: blob,
@@ -146,14 +184,62 @@ export default function ComprimirPDF() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <FileSummary name={files[0].name} size={files[0].size} type="PDF" />
 
-              <SettingsPanel title="Configuracoes avancadas" defaultExpanded={false}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <label style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                    A compressao atual usa o modo equilibrado com streams otimizadas.
-                  </label>
-                  <p style={{ fontSize: 12, color: 'var(--text-tertiary)', margin: 0 }}>
-                    Se o PDF ja estiver otimizado, retornaremos o arquivo original para nao piorar a qualidade.
-                  </p>
+              <SettingsPanel title="Nivel de compressao" defaultExpanded>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'baseline' }}>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {compressionProfile.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                        {compressionProfile.detail}
+                      </div>
+                    </div>
+                    <strong style={{ fontSize: 18, color: 'var(--accent-primary)', whiteSpace: 'nowrap' }}>
+                      {compressionLevel}%
+                    </strong>
+                  </div>
+
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={compressionLevel}
+                    onChange={(event) => setCompressionLevel(Number(event.target.value))}
+                    style={{
+                      width: '100%',
+                      accentColor: 'var(--accent-primary)',
+                      cursor: 'pointer',
+                    }}
+                    aria-label="Nivel de compressao"
+                  />
+
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(5, 1fr)',
+                    gap: 6,
+                    fontSize: 11,
+                    color: 'var(--text-tertiary)',
+                  }}>
+                    <span>Sem perda</span>
+                    <span>Leve</span>
+                    <span>Equilibrada</span>
+                    <span>Forte</span>
+                    <span style={{ textAlign: 'right' }}>Maxima</span>
+                  </div>
+
+                  <div style={{
+                    padding: '10px 12px',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: 8,
+                    background: compressionLevel > 60 ? 'rgba(239, 68, 68, .08)' : 'var(--bg-secondary)',
+                    color: compressionLevel > 60 ? '#b91c1c' : 'var(--text-secondary)',
+                    fontSize: 12,
+                    lineHeight: 1.45,
+                  }}>
+                    {compressionProfile.warning}
+                  </div>
                 </div>
               </SettingsPanel>
 
@@ -204,9 +290,9 @@ export default function ComprimirPDF() {
             onDownload={stats.reduction > 0 ? handleDownload : undefined}
             onReset={reset}
             nextActions={[
-              { label: 'Proteger com senha', onClick: () => sendTo('/proteger-pdf', 'Proteger PDF') },
-              { label: 'Mesclar com outro', onClick: () => sendTo('/mesclar-pdf', 'Mesclar PDFs') },
-              { label: 'Editar PDF', onClick: () => sendTo('/editar-pdf', 'Editar PDF') },
+              { label: 'Proteger com senha', onClick: () => sendTo('/proteger-pdf') },
+              { label: 'Mesclar com outro', onClick: () => sendTo('/mesclar-pdf') },
+              { label: 'Editar PDF', onClick: () => sendTo('/editar-pdf') },
             ]}
           />
         </div>

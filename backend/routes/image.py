@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 
 from core.tempfiles import generate_temp_path, save_upload
 from core.errors import raise_bad_request, raise_internal_error
+from core.outputfiles import AutoSaveFileResponse
 from services.image_service import (
     compress_image_service, convert_image_service,
     resize_image_service, images_to_pdf_service, validate_image_filename
@@ -27,7 +28,7 @@ async def compress_image(
 
     try:
         output_size = compress_image_service(input_path, output_path, quality, target_format, len(content))
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type=f"image/{output_ext.replace('.', '')}",
             filename=f"compressed_{os.path.splitext(file.filename)[0]}{output_ext}",
@@ -60,7 +61,7 @@ async def convert_image(file: UploadFile = File(...), target_format: str = Form(
     try:
         output_size = convert_image_service(input_path, output_path, target_format, len(content))
         media_type = 'image/jpeg' if target_format == 'jpg' else f'image/{target_format}'
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type=media_type,
             filename=f"{os.path.splitext(file.filename)[0]}.{target_format}",
@@ -93,7 +94,7 @@ async def resize_image(
         new_w, new_h, output_size = resize_image_service(
             input_path, output_path, width, height, keep, len(content)
         )
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type=f"image/{output_ext.replace('.', '')}",
             filename=f"resized_{os.path.splitext(file.filename)[0]}{output_ext}",
@@ -166,7 +167,7 @@ async def images_to_pdf(
             per_image_orientations, per_image_rotations
         )
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename="images.pdf",

@@ -2,8 +2,22 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import ThemeToggle from './Themetoggle'; // Import corrigido
 import OutputDirectoryButton from './OutputDirectoryButton';
+import {
+  canAccessGeneralModule,
+  readSessionUser,
+  SESSION_CHANGE_EVENT,
+  type SessionUser,
+} from '../lib/session';
+import {
+  essentialOficioToolIds,
+  getOficioToolPreferenceKey,
+  getToolsByIds,
+  OFICIO_TOOLS_CHANGE_EVENT,
+  type ToolCatalogItem,
+} from '../lib/toolCatalog';
 
 interface Tool { name: string; href: string; description: string; }
 interface Category { name: string; color: string; tools: Tool[]; }
@@ -53,11 +67,58 @@ const categories: Category[] = [
   },
 ];
 
+const MAX_OFICIO_DROPDOWN_TOOLS = 12;
+
+function asNavTool(tool: ToolCatalogItem): Tool {
+  return {
+    name: tool.name,
+    href: tool.oficioHref ?? tool.href,
+    description: tool.desc,
+  };
+}
+
+function oficioCategoryFromTools(tools: ToolCatalogItem[]): Category[] {
+  const visibleTools = tools.slice(0, MAX_OFICIO_DROPDOWN_TOOLS).map(asNavTool);
+  const shouldShowPanelLink = tools.length === 0 || tools.length > MAX_OFICIO_DROPDOWN_TOOLS;
+
+  return [{
+    name: '4º Ofício de Caxias',
+    color: '#D6A371',
+    tools: [
+      ...visibleTools,
+      ...(shouldShowPanelLink
+        ? [{ name: 'Gerenciar painel', href: '/4oficio', description: 'Ver todas as ferramentas ativas' }]
+        : []),
+    ],
+  }];
+}
+
+function readOficioTools(user: SessionUser | null): ToolCatalogItem[] {
+  if (!user) return getToolsByIds(essentialOficioToolIds);
+
+  try {
+    const saved = localStorage.getItem(getOficioToolPreferenceKey(user.name));
+    if (saved !== null) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return getToolsByIds(parsed);
+    }
+  } catch {}
+
+  return getToolsByIds(essentialOficioToolIds);
+}
+
 export default function Navbar() {
+  const pathname = usePathname();
+  const isOficioMode = pathname?.startsWith('/4oficio') ?? false;
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [oficioTools, setOficioTools] = useState<ToolCatalogItem[]>(() => getToolsByIds(essentialOficioToolIds));
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
+  const canSeeGeneral = canAccessGeneralModule(user);
+  const shouldUseOficioNav = isOficioMode || !canSeeGeneral;
+  const activeCategories: Category[] = shouldUseOficioNav ? oficioCategoryFromTools(oficioTools) : categories;
 
   // Per-item timeout refs so each menu has its own close delay
   const closeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -81,6 +142,23 @@ export default function Navbar() {
   useEffect(() => {
     return () => {
       Object.values(closeTimers.current).forEach(clearTimeout);
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncUser = () => {
+      const nextUser = readSessionUser();
+      setUser(nextUser);
+      setOficioTools(readOficioTools(nextUser));
+    };
+    syncUser();
+    window.addEventListener(SESSION_CHANGE_EVENT, syncUser);
+    window.addEventListener(OFICIO_TOOLS_CHANGE_EVENT, syncUser);
+    window.addEventListener('storage', syncUser);
+    return () => {
+      window.removeEventListener(SESSION_CHANGE_EVENT, syncUser);
+      window.removeEventListener(OFICIO_TOOLS_CHANGE_EVENT, syncUser);
+      window.removeEventListener('storage', syncUser);
     };
   }, []);
 
@@ -148,6 +226,24 @@ export default function Navbar() {
           transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
         }
         .nav-root.scrolled { box-shadow: var(--nav-shadow); }
+        .nav-root.oficio-mode {
+          --nav-bg: #10263d;
+          --nav-border: rgba(214,163,113,0.25);
+          --nav-text: rgba(255,255,255,0.72);
+          --nav-text-hover: #fff7ef;
+          --nav-btn-hover-bg: rgba(214,163,113,0.14);
+          --nav-logo-text: #fff7ef;
+          --nav-dropdown-bg: #17314a;
+          --nav-dropdown-border: rgba(214,163,113,0.28);
+          --nav-dropdown-hover: rgba(214,163,113,0.12);
+          --nav-link-name: #fff7ef;
+          --nav-link-desc: rgba(255,247,239,0.6);
+          --nav-shadow: 0 14px 40px rgba(16,38,61,0.28);
+          --mobile-bg: #10263d;
+          --mobile-cat-bg: rgba(214,163,113,0.1);
+          --mobile-cat-border: rgba(214,163,113,0.24);
+          --mobile-tool-hover: rgba(214,163,113,0.12);
+        }
 
         .nav-inner {
           max-width: 1200px;
@@ -176,12 +272,31 @@ export default function Navbar() {
           flex-shrink: 0;
         }
         .nav-logo-mark svg { width: 17px; height: 17px; color: #0A0A0A; }
+        .nav-logo-mark.oficio-mark {
+          width: 38px;
+          height: 38px;
+          padding: 0;
+          overflow: hidden;
+          background: #10263d;
+          border: 1px solid rgba(214,163,113,0.34);
+          border-radius: 10px;
+        }
+        .nav-logo-mark.oficio-mark img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
         .nav-logo-text {
           font-family: 'Syne', sans-serif;
           font-weight: 800; font-size: 18px;
           color: var(--nav-logo-text);
           letter-spacing: -0.5px;
           transition: color 0.3s;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: min(280px, 38vw);
         }
         .nav-logo-text span { color: #E8FF47; }
 
@@ -416,24 +531,31 @@ export default function Navbar() {
           .nav-desktop { display: none; }
           .nav-cta { display: none; }
           .nav-mobile-btn { display: flex; }
+          .nav-logo-text { max-width: 52vw; }
         }
       `}</style>
 
-      <nav className={`nav-root ${scrolled ? 'scrolled' : ''}`}>
+      <nav className={`nav-root ${scrolled ? 'scrolled' : ''} ${shouldUseOficioNav ? 'oficio-mode' : ''}`}>
         <div className="nav-inner">
           {/* Logo */}
-          <Link href="/" className="nav-logo">
-            <div className="nav-logo-mark">
-              <svg fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <span className="nav-logo-text">PDF<span>Tools</span></span>
+          <Link href={shouldUseOficioNav ? '/4oficio' : '/'} className="nav-logo">
+            {shouldUseOficioNav ? (
+              <div className="nav-logo-mark oficio-mark">
+                <img src="/logo.png" alt="4º Ofício de Caxias" />
+              </div>
+            ) : (
+              <div className="nav-logo-mark">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+            <span className="nav-logo-text">{shouldUseOficioNav ? '4º Ofício de Caxias' : <>PDF<span>Tools</span></>}</span>
           </Link>
 
           {/* Desktop menu */}
           <div className="nav-desktop">
-            {categories.map((cat) => (
+            {activeCategories.map((cat) => (
               <div
                 key={cat.name}
                 className="nav-item"
@@ -474,7 +596,9 @@ export default function Navbar() {
           <div className="nav-controls">
             <OutputDirectoryButton />
             <ThemeToggle />
-            <Link href="/comprimir-pdf" className="nav-cta">Começar grátis</Link>
+            <Link href={shouldUseOficioNav ? '/4oficio/mesclar-pdf' : '/comprimir-pdf'} className="nav-cta">
+              {shouldUseOficioNav ? 'Mesclar PDFs' : 'Começar grátis'}
+            </Link>
             <button
               className="nav-mobile-btn"
               onClick={() => setMobileOpen(true)}
@@ -491,13 +615,19 @@ export default function Navbar() {
       {/* Mobile overlay */}
       <div className={`mobile-overlay ${mobileOpen ? 'open' : ''}`}>
         <div className="mobile-header">
-          <Link href="/" className="nav-logo" onClick={() => setMobileOpen(false)}>
-            <div className="nav-logo-mark">
-              <svg fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <span className="nav-logo-text">PDF<span>Tools</span></span>
+          <Link href={shouldUseOficioNav ? '/4oficio' : '/'} className="nav-logo" onClick={() => setMobileOpen(false)}>
+            {shouldUseOficioNav ? (
+              <div className="nav-logo-mark oficio-mark">
+                <img src="/logo.png" alt="4º Ofício de Caxias" />
+              </div>
+            ) : (
+              <div className="nav-logo-mark">
+                <svg fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+            <span className="nav-logo-text">{shouldUseOficioNav ? '4º Ofício de Caxias' : <>PDF<span>Tools</span></>}</span>
           </Link>
           <div className="mobile-header-right">
             <OutputDirectoryButton />
@@ -511,7 +641,7 @@ export default function Navbar() {
         </div>
 
         <div className="mobile-content">
-          {categories.map((cat) => (
+          {activeCategories.map((cat) => (
             <div key={cat.name} className="mobile-category">
               <button
                 className={`mobile-cat-btn ${mobileExpanded === cat.name ? 'expanded' : ''}`}
@@ -545,8 +675,8 @@ export default function Navbar() {
         </div>
 
         <div className="mobile-footer">
-          <Link href="/comprimir-pdf" className="mobile-cta" onClick={() => setMobileOpen(false)}>
-            Começar grátis →
+          <Link href={shouldUseOficioNav ? '/4oficio/mesclar-pdf' : '/comprimir-pdf'} className="mobile-cta" onClick={() => setMobileOpen(false)}>
+            {shouldUseOficioNav ? 'Mesclar PDFs' : 'Começar grátis →'}
           </Link>
         </div>
       </div>

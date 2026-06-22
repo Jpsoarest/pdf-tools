@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from core.security import validate_pdf
 from core.tempfiles import generate_temp_path, save_upload
 from core.errors import raise_bad_request, raise_internal_error
-from core.outputfiles import DEFAULT_OUTPUT_DIR, files_payload, save_output_bytes
+from core.outputfiles import DEFAULT_OUTPUT_DIR, files_payload, save_output_bytes, AutoSaveFileResponse
 from services.tools_service import (
     base64_encode_service, base64_decode_service,
     hash_service, uuid_service,
@@ -140,7 +140,7 @@ async def repair_pdf(file: UploadFile = File(...)):
         from core.tempfiles import cleanup_temp
         cleanup_temp(input_path)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=result_path,
             media_type="application/pdf",
             filename=f"repaired_{file.filename}",
@@ -180,7 +180,7 @@ async def redact_pdf(
         from core.tempfiles import cleanup_temp
         cleanup_temp(input_path)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=result_path,
             media_type="application/pdf",
             filename=f"redacted_{file.filename}",
@@ -251,7 +251,7 @@ async def bookmarks(
             result = bookmarks_service(input_path, output_path, bookmarks_json)
             from core.tempfiles import cleanup_temp
             cleanup_temp(input_path)
-            return FileResponse(
+            return AutoSaveFileResponse(
                 path=output_path,
                 media_type="application/pdf",
                 filename=f"bookmarks_{file.filename}",
@@ -303,7 +303,7 @@ async def generate_qrcode(text: str = Form(...), format: str = Form("png")):
     try:
         output_path = qrcode_service(text, format)
         content_type = {"png": "image/png", "jpg": "image/jpeg", "webp": "image/webp"}.get(format, "image/png")
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type=content_type,
             filename=f"qrcode.{format}"
@@ -334,7 +334,7 @@ async def markdown_to_pdf(file: UploadFile = File(...)):
         from core.tempfiles import cleanup_temp
         cleanup_temp(input_path)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=result_path,
             media_type="application/pdf",
             filename=file.filename.replace(".md", "").replace(".markdown", "").replace(".txt", "") + ".pdf"

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Syne, DM_Sans } from "next/font/google";
 import "./globals.css";
 import Navbar from "./components/navbar";
+import AccessGuard from "./components/AccessGuard";
 import { ThemeProvider } from "./components/Themeprovider";
 import { ToolChainProvider } from "./components/ToolChainProvider";
 
@@ -51,6 +52,7 @@ export default function RootLayout({
       <body className={`${syne.variable} ${dmSans.variable}`}>
         <ThemeProvider>
           <ToolChainProvider>
+            <AccessGuard />
             <Navbar />
             <main className="main-content">
               {children}

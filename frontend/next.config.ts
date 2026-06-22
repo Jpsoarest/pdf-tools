@@ -6,6 +6,7 @@ const backendUrl =
   "http://127.0.0.1:5000";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   async rewrites() {
     return [
       {
@@ -13,6 +14,9 @@ const nextConfig: NextConfig = {
         destination: `${backendUrl}/:path*`,
       },
     ];
+  },
+  experimental: {
+    proxyClientMaxBodySize: "200mb",
   },
 };
 

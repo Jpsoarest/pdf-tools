@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 
 from core.tempfiles import generate_temp_path, save_upload
 from core.errors import raise_bad_request, raise_internal_error
+from core.outputfiles import AutoSaveFileResponse
 from services.xml_service import xml_to_excel_service, xml_preview_service, validate_xml_service
 
 router = APIRouter(prefix="", tags=["XML"])
@@ -22,7 +23,7 @@ async def xml_to_excel(files: list[UploadFile] = File(...)):
         output_path = generate_temp_path(suffix=".xlsx")
         count = xml_to_excel_service(files_data, output_path)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             filename="notas_fiscais.xlsx",

@@ -2,9 +2,13 @@ name: pdf-tools
 
 services:
   backend:
+    image: pdf-tools-backend:latest
     build:
       context: ./backend
     container_name: pdf-tools-backend
+    environment:
+      OUTPUT_DIR: /output/pdf-tools
+      AUTH_USERS_FILE: /output/pdf-tools/users.json
     command: python -m uvicorn app:app --host 0.0.0.0 --port 5000
     ports:
       - "5000:5000"
@@ -26,21 +30,34 @@ services:
       start_period: 20s
 
   frontend:
+    image: pdf-tools-frontend:latest
     build:
       context: ./frontend
       args:
         BACKEND_INTERNAL_URL: http://backend:5000
-        NEXT_PUBLIC_API_URL: http://127.0.0.1:5000
+        NEXT_PUBLIC_API_URL: /api/backend
     container_name: pdf-tools-frontend
     environment:
       BACKEND_INTERNAL_URL: http://backend:5000
-      NEXT_PUBLIC_API_URL: http://127.0.0.1:5000
+      NEXT_PUBLIC_API_URL: /api/backend
     ports:
       - "3000:3000"
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   backend-temp:

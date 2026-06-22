@@ -4,8 +4,14 @@ import shutil
 from pathlib import Path
 from typing import Iterable
 
+from fastapi.responses import FileResponse as _OrigFileResponse
+
 
 def default_user_output_dir() -> Path:
+    configured_output_dir = os.getenv("OUTPUT_DIR", "").strip()
+    if configured_output_dir:
+        return Path(configured_output_dir).expanduser()
+
     home = Path.home()
     for directory_name in ("Downloads", "downloads"):
         candidate = home / directory_name
@@ -53,6 +59,23 @@ def save_output_file(source_path: Path, filename: str) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source_path, output_path)
     return output_path
+
+
+def has_server_output_dir() -> bool:
+    return bool(os.getenv("OUTPUT_DIR", "").strip())
+
+
+def auto_save_to_output(source_path: Path, filename: str) -> Path | None:
+    if not has_server_output_dir():
+        return None
+    return save_output_file(source_path, filename)
+
+
+def AutoSaveFileResponse(path, *, filename=None, **kwargs):
+    """FileResponse that also saves to OUTPUT_DIR when configured."""
+    save_name = filename or Path(path).name
+    auto_save_to_output(Path(path), save_name)
+    return _OrigFileResponse(path, filename=filename, **kwargs)
 
 
 def files_payload(entries: Iterable[tuple[Path, str, str]]) -> dict:

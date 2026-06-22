@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from core.security import validate_pdf
 from core.tempfiles import generate_temp_path, save_upload
 from core.errors import raise_bad_request, raise_internal_error
-from core.outputfiles import files_payload
+from core.outputfiles import files_payload, auto_save_to_output, AutoSaveFileResponse
 from services.pdf_service import (
     compress_pdf_service, merge_pdf_service, split_pdf_service,
     reorder_pdf_service, rotate_pdf_service,
@@ -21,18 +21,18 @@ router = APIRouter(prefix="", tags=["PDF"])
 
 
 @router.post("/compress-pdf")
-async def compress_pdf(file: UploadFile = File(...)):
+async def compress_pdf(file: UploadFile = File(...), compression_level: int = Form(55)):
     validate_pdf(file.filename)
     content = await file.read()
     input_path = save_upload(content)
     output_path = generate_temp_path(suffix="_compressed.pdf")
 
     try:
-        result_path, reduction = compress_pdf_service(input_path, output_path)
+        result_path, reduction = compress_pdf_service(input_path, output_path, compression_level)
         original_size = len(content)
         final_size = os.path.getsize(result_path)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=result_path,
             media_type="application/pdf",
             filename=f"compressed_{file.filename}",
@@ -106,7 +106,7 @@ async def merge_pdf(files: list[UploadFile] = File(...), orientations: str = For
         output_path = generate_temp_path(suffix="_merged.pdf")
         total_pages = merge_pdf_service(temp_files, output_path, parsed_orientations, parsed_rotations)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename="merged.pdf",
@@ -197,7 +197,8 @@ async def merge_pdf_batch(files: list[UploadFile] = File(...), manifest: str = F
 async def split_pdf(
     file: UploadFile = File(...),
     mode: str = Form("all"),
-    ranges: str = Form("")
+    ranges: str = Form(""),
+    groups: str = Form("")
 ):
     validate_pdf(file.filename)
     content = await file.read()
@@ -206,17 +207,41 @@ async def split_pdf(
     output_folder.mkdir(exist_ok=True)
 
     try:
-        output_files, total_pages = split_pdf_service(input_path, output_folder, mode, ranges)
-        payload = files_payload((path, path.name, "application/pdf") for path in output_files)
+        effective_ranges = groups if mode == "visual" else ranges
+        output_files, total_pages = split_pdf_service(input_path, output_folder, mode, effective_ranges)
+
+        if len(output_files) == 1:
+            from core.tempfiles import cleanup_temp
+            resp = FileResponse(
+                output_files[0],
+                media_type="application/pdf",
+                filename=output_files[0].name,
+                headers={
+                    "X-Total-Pages": str(total_pages),
+                    "X-Files-Generated": "1",
+                },
+            )
+            cleanup_temp(input_path)
+            return resp
+
+        import zipfile
+        zip_name = file.filename.replace(".pdf", "").replace(".PDF", "") + "_dividido.zip"
+        zip_path = generate_temp_path(suffix=".zip")
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            for f in output_files:
+                zf.write(f, f.name)
+
         from core.tempfiles import cleanup_temp
         cleanup_temp(input_path, output_folder)
 
-        return JSONResponse(
-            payload,
+        return AutoSaveFileResponse(
+            zip_path,
+            media_type="application/zip",
+            filename=zip_name,
             headers={
                 "X-Total-Pages": str(total_pages),
-                "X-Files-Generated": str(len(output_files))
-            }
+                "X-Files-Generated": str(len(output_files)),
+            },
         )
     except Exception as e:
         from core.tempfiles import cleanup_temp
@@ -233,7 +258,7 @@ async def reorder_pdf(file: UploadFile = File(...), order: str = Form(...)):
 
     try:
         total_pages = reorder_pdf_service(input_path, output_path, order)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"reordered_{file.filename}",
@@ -261,7 +286,7 @@ async def rotate_pdf(
 
     try:
         total_pages, rotated = rotate_pdf_service(input_path, output_path, rotation, pages)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"rotated_{file.filename}",
@@ -285,7 +310,7 @@ async def extract_pages(file: UploadFile = File(...), pages: str = Form(...)):
 
     try:
         total_pages, extracted = extract_pages_service(input_path, output_path, pages)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"extracted_{file.filename}",
@@ -309,7 +334,7 @@ async def remove_pages(file: UploadFile = File(...), pages_to_remove: str = Form
 
     try:
         total_pages, removed = remove_pages_service(input_path, output_path, pages_to_remove)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"without_pages_{file.filename}",
@@ -333,7 +358,7 @@ async def protect_pdf(file: UploadFile = File(...), password: str = Form(...)):
 
     try:
         original_size, protected_size = protect_pdf_service(input_path, output_path, password)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"protected_{file.filename}",
@@ -357,7 +382,7 @@ async def unlock_pdf(file: UploadFile = File(...), password: str = Form(...)):
 
     try:
         original_size, unlocked_size = unlock_pdf_service(input_path, output_path, password)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"unlocked_{file.filename}",
@@ -418,7 +443,7 @@ async def crop_pdf(
 
     try:
         total_pages, cropped = crop_pdf_service(input_path, output_path, x, y, width, height, pages)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"cropped_{file.filename}",
@@ -481,7 +506,7 @@ async def edit_pdf_metadata(
 
     try:
         edit_metadata_service(input_path, output_path, title, author, subject)
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=output_path,
             media_type="application/pdf",
             filename=f"meta_{file.filename}"
@@ -606,7 +631,7 @@ async def pdf_to_excel(
         from core.tempfiles import cleanup_temp
         cleanup_temp(input_path)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=result_path,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             filename=f"{base_name}.xlsx",
@@ -633,7 +658,7 @@ async def excel_to_pdf(file: UploadFile = File(...)):
         from core.tempfiles import cleanup_temp
         cleanup_temp(input_path)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=result_path,
             media_type="application/pdf",
             filename=f"{base_name}.pdf",
@@ -659,7 +684,7 @@ async def pdf_to_txt(file: UploadFile = File(...)):
         from core.tempfiles import cleanup_temp
         cleanup_temp(input_path)
 
-        return FileResponse(
+        return AutoSaveFileResponse(
             path=result_path,
             media_type="text/plain; charset=utf-8",
             filename=f"{base_name}.txt",
