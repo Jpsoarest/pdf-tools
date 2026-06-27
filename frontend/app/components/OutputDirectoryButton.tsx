@@ -7,41 +7,29 @@ import {
   loadSavedOutputDirectory,
   selectOutputDirectory,
   supportsOutputDirectoryPicker,
-  getApiUrl,
 } from '../lib/api';
 
 export default function OutputDirectoryButton() {
   const [label, setLabel] = useState(() => getOutputDirectoryLabel());
   const [supported, setSupported] = useState(false);
-  const [serverDir, setServerDir] = useState<string | null>(null);
-  const [serverBase, setServerBase] = useState('');
   const [showPicker, setShowPicker] = useState(false);
-  const [subdirs, setSubdirs] = useState<string[]>([]);
-  const [newFolder, setNewFolder] = useState('');
-  const [loading, setLoading] = useState(false);
   const popRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
+    const pickerSupported = supportsOutputDirectoryPicker();
     const frame = window.requestAnimationFrame(() => {
-      setSupported(supportsOutputDirectoryPicker());
+      setSupported(pickerSupported);
+      if (!pickerSupported) {
+        clearOutputDirectory();
+        setLabel('Downloads do navegador');
+      }
     });
-    const update = () => setLabel(getOutputDirectoryLabel());
+    const update = () => setLabel(pickerSupported ? getOutputDirectoryLabel() : 'Downloads do navegador');
     void loadSavedOutputDirectory().then((directoryLabel) => {
-      if (active) setLabel(directoryLabel);
+      if (active) setLabel(pickerSupported ? directoryLabel : 'Downloads do navegador');
     });
     window.addEventListener('output-directory-change', update);
-
-    if (!supportsOutputDirectoryPicker()) {
-      fetch(getApiUrl('/output-config'))
-        .then((r) => r.json())
-        .then((data) => {
-          if (active && data.path) {
-            setServerDir(data.path);
-          }
-        })
-        .catch(() => {});
-    }
 
     return () => {
       active = false;
@@ -62,64 +50,26 @@ export default function OutputDirectoryButton() {
     return () => document.removeEventListener('mousedown', handler);
   }, [showPicker]);
 
-  const fetchSubdirs = async () => {
-    try {
-      const res = await fetch(getApiUrl('/output-config/list'));
-      const data = await res.json();
-      setSubdirs(data.dirs || []);
-      setServerBase(data.base || '');
-    } catch { /* ignore */ }
-  };
-
   const handleOpen = async () => {
     if (supported) {
       try {
         const directory = await selectOutputDirectory();
         setLabel(directory);
+        return;
       } catch {
         setLabel(getOutputDirectoryLabel());
       }
-      return;
     }
-    await fetchSubdirs();
     setShowPicker((v) => !v);
   };
 
-  const selectSubdir = async (sub: string) => {
-    setLoading(true);
-    try {
-      const res = await fetch(getApiUrl('/output-config'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subdir: sub }),
-      });
-      const data = await res.json();
-      if (data.path) setServerDir(data.path);
-    } catch { /* ignore */ }
-    setLoading(false);
-    setShowPicker(false);
-  };
-
-  const createAndSelect = async () => {
-    const name = newFolder.trim();
-    if (!name) return;
-    await selectSubdir(name);
-    setNewFolder('');
-  };
-
-  const selectRoot = () => selectSubdir('');
-
   const displayLabel = supported
     ? label
-    : serverDir
-      ? serverDir.split('/').filter(Boolean).pop() || serverDir
-      : 'Downloads';
+    : 'Downloads';
 
   const tooltip = supported
     ? 'Selecionar pasta de saida'
-    : serverDir
-      ? `Saida: ${serverDir}`
-      : 'Pasta de downloads do navegador';
+    : 'Downloads no computador do usuario';
 
   return (
     <>
@@ -256,59 +206,11 @@ export default function OutputDirectoryButton() {
 
         {showPicker && (
           <div className="odp-popover">
-            <div className="odp-header">Pasta de saida</div>
-            <div className="odp-base">{serverBase}</div>
-
-            <div className="odp-list">
-              {/* Root option */}
-              <button
-                className={`odp-item${serverDir === serverBase ? ' active' : ''}`}
-                onClick={selectRoot}
-                disabled={loading}
-              >
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-                </svg>
-                . (raiz)
-              </button>
-
-              {subdirs.map((dir) => {
-                const fullPath = serverBase + '/' + dir;
-                const isActive = serverDir === fullPath;
-                return (
-                  <button
-                    key={dir}
-                    className={`odp-item${isActive ? ' active' : ''}`}
-                    onClick={() => selectSubdir(dir)}
-                    disabled={loading}
-                  >
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-                    </svg>
-                    {dir}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="odp-create">
-              <input
-                className="odp-input"
-                type="text"
-                placeholder="Nova pasta..."
-                value={newFolder}
-                onChange={(e) => setNewFolder(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && createAndSelect()}
-              />
-              <button
-                className="odp-create-btn"
-                onClick={createAndSelect}
-                disabled={!newFolder.trim() || loading}
-              >
-                Criar
-              </button>
+            <div className="odp-header">Downloads no seu computador</div>
+            <div className="odp-base">
+              Em HTTP, a pasta e controlada pelo navegador. Ative a opcao
+              &quot;Perguntar onde salvar cada arquivo&quot; nas configuracoes de downloads
+              para escolher uma pasta no PC a cada resultado.
             </div>
           </div>
         )}

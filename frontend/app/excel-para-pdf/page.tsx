@@ -378,7 +378,7 @@ export default function ExcelParaPdf() {
                 </svg>
               </div>
               <div className="upload-label">Clique para selecionar um Excel</div>
-              <div className="upload-hint">Arquivo único · Máximo 50MB</div>
+              <div className="upload-hint">Arquivo único · Máximo 200MB</div>
             </label>
 
             {file && (

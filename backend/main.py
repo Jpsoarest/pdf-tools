@@ -43,7 +43,7 @@ app.add_middleware(
 TEMP_DIR = Path("temp")
 TEMP_DIR.mkdir(exist_ok=True)
 
-MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_FILE_SIZE = 200 * 1024 * 1024
 
 
 def cleanup_temp(*paths: Path):
@@ -147,7 +147,7 @@ def pdf_color_to_hex(value: Any) -> str:
 def save_upload(file: UploadFile) -> tuple[Path, bytes]:
     content = file.read()
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="Arquivo excede 50MB")
+        raise HTTPException(status_code=413, detail="Arquivo excede 200MB")
     input_id = str(uuid.uuid4())
     input_path = TEMP_DIR / f"{input_id}"
     os.makedirs(input_path.parent, exist_ok=True)
@@ -1662,7 +1662,7 @@ async def pdf_text_layer(file: UploadFile = File(...)):
     try:
         content = await file.read()
         if len(content) > MAX_FILE_SIZE:
-            raise HTTPException(status_code=413, detail="Arquivo excede 50MB")
+            raise HTTPException(status_code=413, detail="Arquivo excede 200MB")
         with open(input_path, "wb") as f:
             f.write(content)
 
@@ -1757,7 +1757,7 @@ async def edit_pdf(
     try:
         content = await file.read()
         if len(content) > MAX_FILE_SIZE:
-            raise HTTPException(status_code=413, detail="Arquivo excede 50MB")
+            raise HTTPException(status_code=413, detail="Arquivo excede 200MB")
         with open(input_path, "wb") as f:
             f.write(content)
 

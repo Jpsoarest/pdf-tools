@@ -376,7 +376,7 @@ export default function WordParaPdf() {
                 </svg>
               </div>
               <div className="upload-label">Clique para selecionar um documento Word</div>
-              <div className="upload-hint">Formatos .docx e .doc • Máximo 50MB</div>
+              <div className="upload-hint">Formatos .docx e .doc • Máximo 200MB</div>
             </label>
 
             {file && (

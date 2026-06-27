@@ -516,7 +516,7 @@ export default function NumerarPaginasPDF() {
                 </svg>
               </div>
               <div className="upload-label">Clique para selecionar um PDF</div>
-              <div className="upload-hint">Arquivo unico • Maximo 50MB</div>
+              <div className="upload-hint">Arquivo unico • Maximo 200MB</div>
             </label>
 
             <PdfImageCapture onPdfReady={(pdfs) => { setFile(pdfs[0]); setError(''); setDone(false); }} />

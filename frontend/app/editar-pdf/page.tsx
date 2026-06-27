@@ -1435,7 +1435,7 @@ export default function EditarPDF() {
                   <label className="upload-box">
                     <input type="file" accept=".pdf" onChange={handleFileChange} />
                     <div className="upload-title">Selecionar PDF</div>
-                    <div className="upload-meta">Arquivo unico, maximo 50MB</div>
+                    <div className="upload-meta">Arquivo unico, maximo 200MB</div>
                   </label>
                 </div>
               ) : (

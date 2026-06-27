@@ -7,7 +7,6 @@ services:
       context: ./backend
     container_name: pdf-tools-backend
     environment:
-      OUTPUT_DIR: /output/pdf-tools
       AUTH_USERS_FILE: /output/pdf-tools/users.json
     command: python -m uvicorn app:app --host 0.0.0.0 --port 5000
     ports:

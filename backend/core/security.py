@@ -2,7 +2,7 @@ from typing import List
 
 ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.tif'}
 ALLOWED_DOCX_EXTENSIONS = {'.docx', '.doc'}
-MAX_FILE_SIZE = 50 * 1024 * 1024
+MAX_FILE_SIZE = 200 * 1024 * 1024
 
 
 def validate_file_extension(filename: str, allowed: set, error_message: str = "Formato de arquivo nao suportado") -> None:

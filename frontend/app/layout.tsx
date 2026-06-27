@@ -5,6 +5,7 @@ import Navbar from "./components/navbar";
 import AccessGuard from "./components/AccessGuard";
 import { ThemeProvider } from "./components/Themeprovider";
 import { ToolChainProvider } from "./components/ToolChainProvider";
+import ModuleThemeShell from "./components/ModuleThemeShell";
 
 const syne = Syne({
   variable: "--font-syne",
@@ -54,9 +55,9 @@ export default function RootLayout({
           <ToolChainProvider>
             <AccessGuard />
             <Navbar />
-            <main className="main-content">
+            <ModuleThemeShell>
               {children}
-            </main>
+            </ModuleThemeShell>
           </ToolChainProvider>
         </ThemeProvider>
       </body>

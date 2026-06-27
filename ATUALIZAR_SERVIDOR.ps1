@@ -42,15 +42,45 @@ function Invoke-Docker {
     }
 }
 
+function Get-DockerValue {
+    param([Parameter(Mandatory)][string[]] $ArgumentList)
+
+    $resultado = & docker @ArgumentList
+    if ($LASTEXITCODE -ne 0) {
+        throw "Docker retornou o codigo $LASTEXITCODE ao executar: docker $($ArgumentList -join ' ')"
+    }
+
+    return ($resultado | Out-String).Trim()
+}
+
 Write-Host 'Carregando as novas imagens...'
 Invoke-Docker -ArgumentList @('load', '--input', 'pdf-tools-backend.tar')
 Invoke-Docker -ArgumentList @('load', '--input', 'pdf-tools-frontend.tar')
+
+$imagemBackend = Get-DockerValue -ArgumentList @('image', 'inspect', '--format={{.Id}}', 'pdf-tools-backend:latest')
+$imagemFrontend = Get-DockerValue -ArgumentList @('image', 'inspect', '--format={{.Id}}', 'pdf-tools-frontend:latest')
+
+Write-Host "Imagem backend carregada:  $imagemBackend"
+Write-Host "Imagem frontend carregada: $imagemFrontend"
 
 Write-Host 'Validando a configuracao...'
 Invoke-Docker -ArgumentList @('compose', 'config', '--quiet')
 
 Write-Host 'Atualizando somente os servicos da aplicacao (sem docker compose down)...'
-Invoke-Docker -ArgumentList @('compose', 'up', '-d', '--no-build', 'backend', 'frontend')
+Invoke-Docker -ArgumentList @('compose', 'up', '-d', '--no-build', '--force-recreate', 'backend', 'frontend')
+
+$containerBackend = Get-DockerValue -ArgumentList @('inspect', '--format={{.Image}}', 'pdf-tools-backend')
+$containerFrontend = Get-DockerValue -ArgumentList @('inspect', '--format={{.Image}}', 'pdf-tools-frontend')
+
+if ($containerBackend -ne $imagemBackend) {
+    throw "O backend nao esta usando a imagem carregada. Esperada: $imagemBackend; atual: $containerBackend"
+}
+
+if ($containerFrontend -ne $imagemFrontend) {
+    throw "O frontend nao esta usando a imagem carregada. Esperada: $imagemFrontend; atual: $containerFrontend"
+}
+
+Write-Host 'IDs das imagens em execucao conferidos com sucesso.'
 
 Write-Host 'Estado atual:'
 Invoke-Docker -ArgumentList @('compose', 'ps')

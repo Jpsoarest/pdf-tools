@@ -6,7 +6,7 @@ def raise_bad_request(message: str, code: str = "BAD_REQUEST") -> None:
     raise HTTPException(status_code=400, detail={"code": code, "message": message})
 
 
-def raise_file_too_large(limit_mb: int = 50) -> None:
+def raise_file_too_large(limit_mb: int = 200) -> None:
     raise HTTPException(status_code=413, detail={"code": "FILE_TOO_LARGE", "message": f"Arquivo excede {limit_mb}MB"})
 
 

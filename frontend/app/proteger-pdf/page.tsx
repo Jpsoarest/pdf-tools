@@ -451,7 +451,7 @@ export default function ProtegerPDF() {
                 </svg>
               </div>
               <div className="upload-label">Clique para selecionar um PDF</div>
-              <div className="upload-hint">Arquivo único • Máximo 50MB</div>
+              <div className="upload-hint">Arquivo único • Máximo 200MB</div>
             </label>
 
             <PdfImageCapture onPdfReady={(pdfs) => { setFile(pdfs[0]); setError(''); setSuccess(false); }} />

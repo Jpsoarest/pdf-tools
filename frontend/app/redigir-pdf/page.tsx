@@ -503,7 +503,7 @@ export default function RedigirPdf() {
                         </svg>
                       </div>
                       <div className="redact-upload-label">Clique para selecionar um PDF</div>
-                      <div className="redact-upload-hint">Arquivo único · Máximo 50MB</div>
+                      <div className="redact-upload-hint">Arquivo único · Máximo 200MB</div>
                     </label>
 
                     <PdfImageCapture onPdfReady={(pdfs) => { setFile(pdfs[0]); setError(''); setCompleted(false); }} />

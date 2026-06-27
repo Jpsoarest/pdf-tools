@@ -511,7 +511,7 @@ export default function BuscarPdfs() {
                     </svg>
                   </div>
                   <div className="search-upload-label">Selecione um ou mais PDFs</div>
-                  <div className="search-upload-hint">Múltiplos arquivos · Máximo 50MB cada</div>
+                  <div className="search-upload-hint">Múltiplos arquivos · Máximo 200MB cada</div>
                 </label>
 
                 {files.length > 0 && (

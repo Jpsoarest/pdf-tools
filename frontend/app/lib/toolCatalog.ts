@@ -18,6 +18,10 @@ export function getOficioToolPreferenceKey(userName: string) {
   return `${OFICIO_PREF_PREFIX}${userName.toLowerCase().replace(/[^a-z0-9]+/gi, '-')}`;
 }
 
+export function getOficioToolHref(tool: ToolCatalogItem) {
+  return tool.oficioHref ?? `${tool.href}?module=4oficio`;
+}
+
 export const toolCatalog: ToolCatalogItem[] = [
   { id: 'comprimir-pdf', name: 'Comprimir PDF', href: '/comprimir-pdf', icon: 'CP', desc: 'Reduza o tamanho do arquivo.', category: 'PDF' },
   { id: 'mesclar-pdf', name: 'Mesclar PDFs', href: '/mesclar-pdf', oficioHref: '/4oficio/mesclar-pdf', icon: 'MP', desc: 'Junte varios arquivos em um so.', category: 'PDF' },

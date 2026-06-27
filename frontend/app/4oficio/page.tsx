@@ -6,6 +6,7 @@ import { readSessionUser, type SessionUser } from '../lib/session';
 import {
   essentialOficioToolIds,
   getOficioToolPreferenceKey,
+  getOficioToolHref,
   getToolsByIds,
   OFICIO_TOOLS_CHANGE_EVENT,
   toolCatalog,
@@ -392,7 +393,7 @@ export default function OficioHome() {
                           </div>
                         </div>
                         <div className="tool-actions">
-                          <Link className="tool-open" href={tool.oficioHref ?? tool.href}>Abrir</Link>
+                          <Link className="tool-open" href={getOficioToolHref(tool)}>Abrir</Link>
                           <button className="tool-remove" type="button" onClick={() => removeTool(tool.id)}>Excluir</button>
                         </div>
                       </article>

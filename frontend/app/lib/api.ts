@@ -193,7 +193,7 @@ export function getApiUrl(path: string): string {
 
 export function supportsOutputDirectoryPicker(): boolean {
   if (typeof window === 'undefined') return false;
-  return typeof (window as AppWindow).showDirectoryPicker === 'function';
+  return window.isSecureContext && typeof (window as AppWindow).showDirectoryPicker === 'function';
 }
 
 export function getOutputDirectoryLabel(): string {

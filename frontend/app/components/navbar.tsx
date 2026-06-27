@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
 import ThemeToggle from './Themetoggle'; // Import corrigido
 import OutputDirectoryButton from './OutputDirectoryButton';
 import {
@@ -14,10 +13,12 @@ import {
 import {
   essentialOficioToolIds,
   getOficioToolPreferenceKey,
+  getOficioToolHref,
   getToolsByIds,
   OFICIO_TOOLS_CHANGE_EVENT,
   type ToolCatalogItem,
 } from '../lib/toolCatalog';
+import { useOficioMode } from '../lib/useOficioMode';
 
 interface Tool { name: string; href: string; description: string; }
 interface Category { name: string; color: string; tools: Tool[]; }
@@ -72,7 +73,7 @@ const MAX_OFICIO_DROPDOWN_TOOLS = 12;
 function asNavTool(tool: ToolCatalogItem): Tool {
   return {
     name: tool.name,
-    href: tool.oficioHref ?? tool.href,
+    href: getOficioToolHref(tool),
     description: tool.desc,
   };
 }
@@ -108,8 +109,7 @@ function readOficioTools(user: SessionUser | null): ToolCatalogItem[] {
 }
 
 export default function Navbar() {
-  const pathname = usePathname();
-  const isOficioMode = pathname?.startsWith('/4oficio') ?? false;
+  const isOficioMode = useOficioMode();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [oficioTools, setOficioTools] = useState<ToolCatalogItem[]>(() => getToolsByIds(essentialOficioToolIds));
   const [activeMenu, setActiveMenu] = useState<string | null>(null);

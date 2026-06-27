@@ -5,7 +5,9 @@ A aplicacao usa dois containers:
 - `pdf-tools-frontend`, na porta `3000`;
 - `pdf-tools-backend`, na porta `5000`.
 
-Os dados permanentes ficam em `./output` no host e nao fazem parte das imagens.
+O arquivo de usuarios fica em `./output/pdf-tools/users.json` no host e nao faz
+parte das imagens. Os documentos processados sao baixados no computador do
+usuario e nao sao salvos automaticamente no servidor.
 
 ## Arquivos para enviar ao servidor
 
@@ -29,10 +31,11 @@ Set-ExecutionPolicy -Scope Process Bypass
 .\ATUALIZAR_SERVIDOR.ps1
 ```
 
-O script usa `docker load` e `docker compose up -d --no-build`. Ele nao executa
-`docker compose down`, nao remove volumes e nao interfere em containers de outros
-projetos. O Compose recria somente os servicos desta aplicacao cujas imagens foram
-atualizadas.
+O script usa `docker load` e `docker compose up -d --no-build --force-recreate`.
+Ele nao executa `docker compose down`, nao remove volumes e nao interfere em
+containers de outros projetos. O Compose recria somente os dois servicos desta
+aplicacao. Ao final, o script tambem confirma que cada container esta executando
+exatamente o ID da imagem carregada do arquivo `.tar`.
 
 Tambem e possivel executar manualmente:
 
@@ -40,7 +43,7 @@ Tambem e possivel executar manualmente:
 docker load -i pdf-tools-backend.tar
 docker load -i pdf-tools-frontend.tar
 docker compose config --quiet
-docker compose up -d --no-build backend frontend
+docker compose up -d --no-build --force-recreate backend frontend
 docker compose ps
 ```
 
@@ -58,11 +61,15 @@ docker compose logs --tail=100 backend frontend
 - Frontend: `http://IP_DO_SERVIDOR:3000`
 - Backend: `http://IP_DO_SERVIDOR:5000`
 
-## Persistencia e login
+## Downloads, persistencia e login
 
-- Saida permanente: `./output`
+- Downloads dos resultados: computador do usuario, conforme a configuracao do navegador
 - Temporarios: volume Docker `backend-temp`
 - Arquivo de usuarios: `./output/pdf-tools/users.json`
+
+Em HTTP, o navegador controla a pasta de downloads. Para escolher o destino no
+PC a cada arquivo, ative "Perguntar onde salvar cada arquivo" nas configuracoes
+de downloads do navegador. A selecao direta de uma pasta pela pagina exige HTTPS.
 
 O usuario inicial e `admin`, com senha `137494`. Depois do primeiro acesso,
 troque a senha ou crie os usuarios definitivos pela interface.

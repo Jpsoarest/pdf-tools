@@ -332,7 +332,7 @@ export default function CortarPDF() {
                   </svg>
                 </div>
                 <div className="upload-label">Clique para selecionar um PDF</div>
-                <div className="upload-hint">Maximo 50MB</div>
+                <div className="upload-hint">Maximo 200MB</div>
               </label>
             )}
 

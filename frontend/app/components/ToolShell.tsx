@@ -153,7 +153,7 @@ export default function ToolShell({ title, description, breadcrumbs, children, s
             </span>
             <span className="toolshell-badge">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7"/></svg>
-              Até 50MB
+              Até 200MB
             </span>
           </div>
           {stats && stats.length > 0 && (

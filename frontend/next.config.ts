@@ -16,7 +16,8 @@ const nextConfig: NextConfig = {
     ];
   },
   experimental: {
-    proxyClientMaxBodySize: "200mb",
+    // Reserva margem para o envelope multipart de um arquivo de ate 200 MB.
+    proxyClientMaxBodySize: "210mb",
   },
 };
 
