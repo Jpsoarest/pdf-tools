@@ -53,3 +53,4 @@ logo.png
 # Generated Docker deployment artifacts
 *.tar
 SHA256SUMS.txt
+deploy/
