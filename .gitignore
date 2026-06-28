@@ -23,6 +23,7 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Temporary files
 temp/

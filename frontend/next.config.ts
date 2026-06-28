@@ -7,6 +7,7 @@ const backendUrl =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  trustHost: true,
   async rewrites() {
     return [
       {

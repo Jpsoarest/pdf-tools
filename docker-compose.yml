@@ -9,8 +9,8 @@ services:
     environment:
       AUTH_USERS_FILE: /output/pdf-tools/users.json
     command: python -m uvicorn app:app --host 0.0.0.0 --port 5000
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     volumes:
       - ./output:/output
       - backend-temp:/app/temp
@@ -39,8 +39,8 @@ services:
     environment:
       BACKEND_INTERNAL_URL: http://backend:5000
       NEXT_PUBLIC_API_URL: /api/backend
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     depends_on:
       backend:
         condition: service_healthy
@@ -57,6 +57,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: pdf-tools-cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    env_file:
+      - .env
+    restart: unless-stopped
+    depends_on:
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f cloudflared >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
 volumes:
   backend-temp:

@@ -67,10 +67,11 @@ Write-Host 'Validando a configuracao...'
 Invoke-Docker -ArgumentList @('compose', 'config', '--quiet')
 
 Write-Host 'Atualizando somente os servicos da aplicacao (sem docker compose down)...'
-Invoke-Docker -ArgumentList @('compose', 'up', '-d', '--no-build', '--force-recreate', 'backend', 'frontend')
+Invoke-Docker -ArgumentList @('compose', 'up', '-d', '--no-build', '--force-recreate', 'backend', 'frontend', 'cloudflared')
 
 $containerBackend = Get-DockerValue -ArgumentList @('inspect', '--format={{.Image}}', 'pdf-tools-backend')
 $containerFrontend = Get-DockerValue -ArgumentList @('inspect', '--format={{.Image}}', 'pdf-tools-frontend')
+$containerCloudflared = Get-DockerValue -ArgumentList @('inspect', '--format={{.Image}}', 'pdf-tools-cloudflared')
 
 if ($containerBackend -ne $imagemBackend) {
     throw "O backend nao esta usando a imagem carregada. Esperada: $imagemBackend; atual: $containerBackend"
@@ -78,6 +79,10 @@ if ($containerBackend -ne $imagemBackend) {
 
 if ($containerFrontend -ne $imagemFrontend) {
     throw "O frontend nao esta usando a imagem carregada. Esperada: $imagemFrontend; atual: $containerFrontend"
+}
+
+if ($containerCloudflared -notlike 'cloudflare/cloudflared:*') {
+    throw "O container cloudflared nao esta usando a imagem oficial. Atual: $containerCloudflared"
 }
 
 Write-Host 'IDs das imagens em execucao conferidos com sucesso.'
